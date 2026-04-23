@@ -114,9 +114,9 @@ body {
 
 // Below ~420px of slot width the 2-column grid would starve each button of
 // horizontal space (~160px per cell), shrinking the type past legibility and
-// clipping the subtitle. Collapse to a single column at that point but keep
-// the diagonal feel by alternating alignment on an 85%-wide button — still
-// reads as "checkered A/B variant", not a boring vertical stack.
+// clipping the subtitle. Collapse to a single column so each button gets the
+// full slot width — keeps the CTAs tappable and the subtitles legible. The
+// reading order (primary → secondary) preserves the visual hierarchy.
 @container (max-width: 420px) {
   .cta-grid {
     grid-template-columns: 1fr;
@@ -125,17 +125,11 @@ body {
   .cta--primary {
     grid-column: 1;
     grid-row: 1;
-    justify-self: start;
   }
 
   .cta--secondary {
     grid-column: 1;
     grid-row: 2;
-    justify-self: end;
-  }
-
-  .cta {
-    width: 85%;
   }
 }
 
