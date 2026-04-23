@@ -1,0 +1,73 @@
+<!--
+  =========================================================================
+  Colonist — Checkered CTA A/B Variant
+  =========================================================================
+  Time spent: ~90 minutes (scaffolding + implementation + responsive testing
+                            + deployment workflow).
+  AI usage:   Claude Code (Opus 4.7) was used to scaffold the Vite + TS + SCSS
+              project in a GitHub repo with a Pages deploy workflow, iterate
+              on the responsive layout, and run Playwright smoke tests on
+              multiple viewports. Every design decision below was reviewed
+              and approved before commit; the AI did not ship anything I
+              wasn't happy to sign my name to.
+
+  Live repo:  https://github.com/elumixor/colonist-test-task
+  Live demo:  https://elumixor.github.io/colonist-test-task/
+
+  Design decisions
+  ----------------
+  1. Layout = CSS Grid 2x2, primary in cell (1,1), secondary in cell (2,2).
+     No absolute positioning, no JS measurement. The empty diagonal cells
+     do the work of making this read as "checkered".
+
+  2. Container queries, not media queries. The A/B slot is ~280 px wide
+     inside the Colonist homepage, but this file can be embedded in bigger
+     or smaller slots; `container-type: inline-size` on the slot plus
+     `cqi` units on the button's padding/radius/type means the same
+     component renders correctly at 240, 500 or 1000 px wide. A viewport
+     media query would lie — it would respond to the phone, not the slot.
+
+  3. Aspect-ratio locked at 3.5 (matches the orange reference). Both
+     buttons share it; hard requirement from the brief.
+
+  4. Max width capped at 500 px per the brief. Buttons scale down from
+     there, and below ~420 px of slot width the 2-column grid collapses
+     to a single column so the subtitle remains legible.
+
+  5. Secondary CTA hits a Colonist lobby API with a 2 s abort timeout and
+     falls through to the public /lobby page on any failure (CORS, offline,
+     empty list). The click is never wasted. Endpoints are centralized so
+     swapping to the real lobby/spectate/leaderboards URL is one line.
+
+  6. Primary CTA uses `window.location.assign` (same tab) so the player
+     isn't dumped into a background tab they might miss.
+
+  7. Accessibility: native <button> elements, visible focus ring,
+     aria-busy on the in-flight secondary, aria-live status for the
+     loading message, and a `prefers-reduced-motion` opt-out.
+-->
+<main class="cta-slot" aria-label="Colonist call-to-action buttons">
+  <div class="cta-grid">
+    <button
+      type="button"
+      class="cta cta--primary"
+      data-cta="primary"
+      aria-label="Quick play — jump into a game instantly"
+    >
+      <span class="cta__title">QUICK PLAY</span>
+      <span class="cta__subtitle">Jump into a game instantly</span>
+    </button>
+
+    <button
+      type="button"
+      class="cta cta--secondary"
+      data-cta="secondary"
+      aria-label="Join a live lobby"
+    >
+      <span class="cta__title">JOIN A LOBBY</span>
+      <span class="cta__subtitle">Browse live games right now</span>
+    </button>
+  </div>
+
+  <p class="cta-slot__status" role="status" aria-live="polite"></p>
+</main>
