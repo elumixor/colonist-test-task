@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Colonist — Checkered CTA A/B Variant</title>
+    <meta
+      name="description"
+      content="A/B test variant: checkered primary/secondary CTA layout for the Colonist.io homepage."
+    />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <main class="cta-slot" aria-label="Colonist call-to-action buttons">
+      <div class="cta-grid">
+        <button
+          type="button"
+          class="cta cta--primary"
+          data-cta="primary"
+          aria-label="Quick play — jump into a game instantly"
+        >
+          <span class="cta__title">QUICK PLAY</span>
+          <span class="cta__subtitle">Jump into a game instantly</span>
+        </button>
+
+        <button
+          type="button"
+          class="cta cta--secondary"
+          data-cta="secondary"
+          aria-label="Join a live lobby"
+        >
+          <span class="cta__title">JOIN A LOBBY</span>
+          <span class="cta__subtitle">Browse live games right now</span>
+        </button>
+      </div>
+
+      <p class="cta-slot__status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
