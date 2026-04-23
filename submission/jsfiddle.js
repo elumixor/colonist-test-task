@@ -1,17 +1,15 @@
 // Central place for Colonist URLs. Swap these for the real production
-// endpoints once known — no other code changes needed.
+// endpoints in one place — no other code changes needed.
 const COLONIST = {
   // Primary CTA — lands the player in a live room.
   quickPlayUrl: "https://colonist.io/#quickplay",
 
-  // Secondary CTA — lobby / spectate / leaderboards integration. Try the
-  // lobby list endpoint, open the busiest live lobby, fall back to the
-  // lobby page on any failure.
-  lobbyApiUrl: "https://colonist.io/api/lobby/list",
-  lobbyFallbackUrl: "https://colonist.io/lobby",
+  // Secondary CTA — leaderboards integration.
+  leaderboardsApiUrl: "https://colonist.io/api/leaderboards-tabs/",
+  leaderboardsUrl: "https://colonist.io/leaderboards",
 
   // Hard cap so a hung network never blocks the user.
-  lobbyApiTimeoutMs: 2000,
+  leaderboardsApiTimeoutMs: 2000,
 };
 
 // ---------------------------------------------------------------------------
@@ -31,48 +29,59 @@ secondary.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Secondary CTA logic
+// Secondary CTA — fetches leaderboard metadata (season + available tabs),
+// logs the raw response and flashes a short summary, then navigates. Any
+// failure still navigates, so the click is never wasted.
 // ---------------------------------------------------------------------------
 async function handleSecondaryClick() {
   if (secondary.getAttribute("aria-busy") === "true") return;
 
-  setBusy(true, "Finding a live lobby…");
+  setBusy(true, "Loading leaderboards…");
 
   try {
-    const target = await fetchBestLobbyUrl();
-    window.location.assign(target || COLONIST.lobbyFallbackUrl);
-  } catch {
-    window.location.assign(COLONIST.lobbyFallbackUrl);
+    const summary = await fetchLeaderboardsSummary();
+    if (summary) {
+      console.info("[colonist/leaderboards]", summary.raw);
+      setBusy(true, summary.userMessage);
+    }
+  } catch (err) {
+    console.warn("[colonist/leaderboards] fetch failed, falling back", err);
   } finally {
-    setBusy(false, "");
+    // Brief pause so the status line is readable before we navigate away.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(
+      () => window.location.assign(COLONIST.leaderboardsUrl),
+      reduced ? 0 : 600,
+    );
   }
 }
 
-// Hits the lobby API with a hard timeout. Returns the best join URL or null
-// — never throws, so the caller just treats null as "use the fallback".
-async function fetchBestLobbyUrl() {
+async function fetchLeaderboardsSummary() {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), COLONIST.lobbyApiTimeoutMs);
+  const timer = setTimeout(() => controller.abort(), COLONIST.leaderboardsApiTimeoutMs);
 
   try {
-    const res = await fetch(COLONIST.lobbyApiUrl, {
+    const res = await fetch(COLONIST.leaderboardsApiUrl, {
       signal: controller.signal,
       headers: { accept: "application/json" },
     });
     if (!res.ok) return null;
 
     const data = await res.json();
-    const lobbies = data.lobbies || data.data || [];
-    if (!lobbies.length) return null;
-
-    // Busiest lobby first so the user lands in an active game.
-    const best = [...lobbies].sort((a, b) => (b.players || 0) - (a.players || 0))[0];
-    return best.joinUrl || best.spectateUrl || best.url || null;
+    return { raw: data, userMessage: buildUserMessage(data) };
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function buildUserMessage(data) {
+  const seasonNumber = data?.activeSeasonData?.name?.options?.seasonNumber;
+  const tabCount = data?.tableTabs?.length ?? 0;
+  if (seasonNumber != null) return `Season ${seasonNumber} · ${tabCount} boards`;
+  if (tabCount > 0) return `${tabCount} boards available`;
+  return "Opening leaderboards…";
 }
 
 function setBusy(busy, message) {

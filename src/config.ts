@@ -5,14 +5,13 @@ export const COLONIST = {
   // Primary CTA destination — starts a quick game.
   quickPlayUrl: "https://colonist.io/#quickplay",
 
-  // Secondary CTA — lobby / spectate / leaderboards integration.
+  // Secondary CTA — leaderboards integration.
   //
-  // We try the lobby list endpoint first and open the busiest live lobby so
-  // the user lands directly in the action. If the endpoint is unreachable
-  // (CORS, offline, rate-limit), we fall back to the lobby page.
-  lobbyApiUrl: "https://colonist.io/api/lobby/list",
-  lobbyFallbackUrl: "https://colonist.io/lobby",
+  // Fetches the leaderboard-tabs metadata (current season + available tabs)
+  // before navigating, so we can log/preview what the user's about to see.
+  leaderboardsApiUrl: "https://colonist.io/api/leaderboards-tabs/",
+  leaderboardsUrl: "https://colonist.io/leaderboards",
 
   // Hard cap on the API call so a hung network doesn't block the user.
-  lobbyApiTimeoutMs: 2000,
+  leaderboardsApiTimeoutMs: 2000,
 } as const;

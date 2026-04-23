@@ -1,16 +1,19 @@
 import { COLONIST } from "./config.ts";
 
-// Shape of a single lobby item. Kept permissive — we only rely on the URL.
-interface LobbyItem {
-  joinUrl?: string;
-  spectateUrl?: string;
-  url?: string;
-  players?: number;
-}
-
-interface LobbyResponse {
-  lobbies?: LobbyItem[];
-  data?: LobbyItem[];
+// Shape of the response from /api/leaderboards-tabs/. Only the fields we
+// actually use are typed — the rest can come and go without breaking us.
+interface LeaderboardsResponse {
+  activeRankedModeTypes?: number[];
+  tableTabs?: Array<{
+    label: string | { key: string; options?: Record<string, unknown> };
+    leaderboardUrl: string;
+  }>;
+  activeSeasonData?: {
+    rankedSeasonType?: number;
+    name?: { key?: string; options?: { seasonNumber?: number } };
+    startDate?: string;
+    endDate?: string;
+  };
 }
 
 /**
@@ -46,55 +49,74 @@ function goToQuickPlay(): void {
 }
 
 /**
- * Secondary CTA — pulls the live lobby list from the Colonist API, picks the
- * busiest game, and navigates there. Any failure falls through to the public
- * lobby page so the click is never wasted.
+ * Secondary CTA — fetches leaderboard metadata (current season + available
+ * tabs), surfaces a short summary to the user + console, and navigates to
+ * the leaderboards page. On any failure we still navigate, so the click is
+ * never wasted.
  */
 async function handleSecondaryClick(btn: HTMLButtonElement, status: HTMLElement | null): Promise<void> {
   if (btn.getAttribute("aria-busy") === "true") return;
 
-  setBusy(btn, status, true, "Finding a live lobby…");
+  setBusy(btn, status, true, "Loading leaderboards…");
 
   try {
-    const target = await fetchBestLobbyUrl();
-    window.location.assign(target ?? COLONIST.lobbyFallbackUrl);
-  } catch {
-    // Any unexpected error still lands the user somewhere useful.
-    window.location.assign(COLONIST.lobbyFallbackUrl);
+    const summary = await fetchLeaderboardsSummary();
+    if (summary) {
+      console.info("[colonist/leaderboards]", summary.raw);
+      setBusy(btn, status, true, summary.userMessage);
+    }
+  } catch (err) {
+    console.warn("[colonist/leaderboards] fetch failed, falling back", err);
   } finally {
-    setBusy(btn, status, false, "");
+    // Small delay lets the status line flash long enough to be readable
+    // before we navigate away. Skipped when reduced-motion is preferred.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.setTimeout(
+      () => {
+        window.location.assign(COLONIST.leaderboardsUrl);
+      },
+      reduced ? 0 : 600,
+    );
   }
 }
 
+interface LeaderboardsSummary {
+  raw: LeaderboardsResponse;
+  userMessage: string;
+}
+
 /**
- * Try the lobby API with a hard timeout. Returns the best join URL or null.
- * Never throws — callers treat null as "go to fallback".
+ * Hit /api/leaderboards-tabs/ with a hard timeout. Returns a summary or null
+ * on any failure — never throws.
  */
-async function fetchBestLobbyUrl(): Promise<string | null> {
+async function fetchLeaderboardsSummary(): Promise<LeaderboardsSummary | null> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => {
     controller.abort();
-  }, COLONIST.lobbyApiTimeoutMs);
+  }, COLONIST.leaderboardsApiTimeoutMs);
 
   try {
-    const res = await fetch(COLONIST.lobbyApiUrl, {
+    const res = await fetch(COLONIST.leaderboardsApiUrl, {
       signal: controller.signal,
       headers: { accept: "application/json" },
     });
     if (!res.ok) return null;
 
-    const data = (await res.json()) as LobbyResponse;
-    const lobbies = data.lobbies ?? data.data ?? [];
-    if (lobbies.length === 0) return null;
-
-    // Busiest lobby first so the user lands in an active game.
-    const best = [...lobbies].sort((a, b) => (b.players ?? 0) - (a.players ?? 0))[0];
-    return best?.joinUrl ?? best?.spectateUrl ?? best?.url ?? null;
+    const data = (await res.json()) as LeaderboardsResponse;
+    return { raw: data, userMessage: buildUserMessage(data) };
   } catch {
     return null;
   } finally {
     window.clearTimeout(timer);
   }
+}
+
+function buildUserMessage(data: LeaderboardsResponse): string {
+  const seasonNumber = data.activeSeasonData?.name?.options?.seasonNumber;
+  const tabCount = data.tableTabs?.length ?? 0;
+  if (seasonNumber != null) return `Season ${seasonNumber} · ${tabCount} boards`;
+  if (tabCount > 0) return `${tabCount} boards available`;
+  return "Opening leaderboards…";
 }
 
 function setBusy(btn: HTMLButtonElement, status: HTMLElement | null, busy: boolean, message: string): void {

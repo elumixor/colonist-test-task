@@ -2,8 +2,8 @@
   =========================================================================
   Colonist — Checkered CTA A/B Variant
   =========================================================================
-  Time spent: ~90 minutes (scaffolding + implementation + responsive testing
-                            + deployment workflow).
+  Time spent: ~2 hours (scaffolding + implementation + responsive + deploy
+                        + leaderboards-API iteration + review).
   AI usage:   Claude Code (Opus 4.7) was used to scaffold the Vite + TS + SCSS
               project in a GitHub repo with a Pages deploy workflow, iterate
               on the responsive layout, and run Playwright smoke tests on
@@ -20,32 +20,45 @@
      No absolute positioning, no JS measurement. The empty diagonal cells
      do the work of making this read as "checkered".
 
-  2. Container queries, not media queries. The A/B slot is ~280 px wide
-     inside the Colonist homepage, but this file can be embedded in bigger
-     or smaller slots; `container-type: inline-size` on the slot plus
-     `cqi` units on the button's padding/radius/type means the same
-     component renders correctly at 240, 500 or 1000 px wide. A viewport
-     media query would lie — it would respond to the phone, not the slot.
+  2. Two container-query scopes:
+       - Named `slot` on `.cta-slot`: width of the embed → controls whether
+         the grid is 2-col (checkered) or 1-col (stacked).
+       - Unnamed on each `.cta`: width of the button → controls title and
+         subtitle font size, so titles never overflow on tablet widths
+         where the slot is wide but each cell is narrow.
+     No viewport media queries — a slot of 768 px has nothing to do with
+     a phone at 768 px.
 
   3. Aspect-ratio locked at 3.5 (matches the orange reference). Both
-     buttons share it; hard requirement from the brief.
+     buttons share it; hard requirement from the brief. `white-space:
+     nowrap` on the title prevents two-line breaks like "JOIN A / LOBBY".
 
-  4. Max width capped at 500 px per the brief. Buttons scale down from
-     there, and below ~420 px of slot width the 2-column grid collapses
-     to a single column so the subtitle remains legible.
+  4. Max width capped at 500 px per the brief. Below ~420 px of slot
+     width the grid collapses to a single column so the subtitle stays
+     legible.
 
-  5. Secondary CTA hits a Colonist lobby API with a 2 s abort timeout and
-     falls through to the public /lobby page on any failure (CORS, offline,
-     empty list). The click is never wasted. Endpoints are centralized so
-     swapping to the real lobby/spectate/leaderboards URL is one line.
+  5. Font is Open Sans — matches the Colonist homepage typography.
 
-  6. Primary CTA uses `window.location.assign` (same tab) so the player
-     isn't dumped into a background tab they might miss.
+  6. Primary CTA = same-tab navigation to a quick-play room.
 
-  7. Accessibility: native <button> elements, visible focus ring,
+  7. Secondary CTA = fetches the real leaderboards-tabs API
+     (https://colonist.io/api/leaderboards-tabs/) with a 2 s abort
+     timeout, logs the response to the console, surfaces a short
+     summary ("Season N · M boards") on the status line, then
+     navigates to /leaderboards. On any failure (CORS, offline,
+     timeout) it still navigates — the click is never wasted.
+
+  8. Accessibility: native <button> elements, visible focus ring,
      aria-busy on the in-flight secondary, aria-live status for the
      loading message, and a `prefers-reduced-motion` opt-out.
 -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap"
+  rel="stylesheet"
+/>
+
 <main class="cta-slot" aria-label="Colonist call-to-action buttons">
   <div class="cta-grid">
     <button
@@ -62,10 +75,10 @@
       type="button"
       class="cta cta--secondary"
       data-cta="secondary"
-      aria-label="Join a live lobby"
+      aria-label="See the leaderboards"
     >
-      <span class="cta__title">JOIN A LOBBY</span>
-      <span class="cta__subtitle">Browse live games right now</span>
+      <span class="cta__title">LEADERBOARDS</span>
+      <span class="cta__subtitle">See who's topping the charts</span>
     </button>
   </div>
 

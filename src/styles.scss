@@ -50,15 +50,9 @@ body {
 
 body {
   background: $color-bg;
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+  // Colonist's brand font. The Google Fonts link lives in the HTML so it can
+  // be preconnected before CSS even parses.
+  font-family: "Open Sans", sans-serif;
   color: #fff;
   // Center the slot in the viewport for a clean preview page.
   display: grid;
@@ -78,10 +72,9 @@ body {
 .cta-slot {
   width: 100%;
   max-width: calc(#{$cta-max-width} * 2 + #{$gap} * 2);
-  // Enable container queries — lets child radius/gap/padding scale with
-  // the slot itself, not the viewport. This is what makes the buttons look
-  // right whether they're 240px or 1000px wide.
-  container-type: inline-size;
+  // Named container: "slot" queries target slot width (for grid layout),
+  // and unnamed queries inside a button target the button itself (for type).
+  container: slot / inline-size;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +110,7 @@ body {
 // clipping the subtitle. Collapse to a single column so each button gets the
 // full slot width — keeps the CTAs tappable and the subtitles legible. The
 // reading order (primary → secondary) preserves the visual hierarchy.
-@container (max-width: 420px) {
+@container slot (max-width: 420px) {
   .cta-grid {
     grid-template-columns: 1fr;
   }
@@ -151,6 +144,11 @@ body {
   color: $color-text-on-cta;
   text-align: center;
   cursor: pointer;
+
+  // The button is its own (unnamed) container so title/subtitle can size
+  // off *button* width — not slot width. Fixes tablet/midsize where the
+  // slot is wide but each cell is narrow, which used to overflow the title.
+  container-type: inline-size;
 
   // Sizing — fills its grid cell, capped at the brief's 500px, aspect-locked.
   width: 100%;
@@ -194,20 +192,25 @@ body {
 }
 
 .cta__title {
-  font-family: "Impact", "Arial Black", "Helvetica Neue", sans-serif;
-  font-weight: 900;
-  letter-spacing: clamp(0.5px, 0.4cqi, 2px);
-  // Type scales with the slot — never too big, never unreadable.
-  font-size: clamp(18px, 8cqi, 56px);
+  font-family: "Open Sans", sans-serif;
+  font-weight: 800;
+  letter-spacing: clamp(0.4px, 0.4cqi, 1.4px);
+  // Type scales with *button* width (cqi = button inline-size). At 500px,
+  // cap hits; at 240px the min kicks in. Values tuned so "LEADERBOARDS"
+  // (12 chars) fits on one line across the full responsive range.
+  font-size: clamp(15px, 12.5cqi, 40px);
   line-height: 1;
   text-transform: uppercase;
+  // Never let the title break — "JOIN A / LOBBY" wrapping looked cheap on
+  // tablet widths, where each cell is narrow but the type was slot-scaled.
+  white-space: nowrap;
   // Flatten descenders/ascenders so the title sits visually centered.
   transform: translateY(-0.02em);
 }
 
 .cta__subtitle {
   font-weight: 600;
-  font-size: clamp(10px, 2.8cqi, 18px);
+  font-size: clamp(10px, 4.2cqi, 16px);
   line-height: 1.15;
   opacity: 0.96;
   // Prevent the subtitle from wrapping to more than 2 lines on narrow slots.
