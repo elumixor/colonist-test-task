@@ -1,12 +1,24 @@
-# JSFiddle submission bundle
+# Submission bundle
 
-Three files, one per JSFiddle panel. Paste each into the matching box.
+This folder is **both** the GitHub Pages deploy root and the JSFiddle
+submission source. No separate `src/` — edit files here directly.
 
-| File | JSFiddle panel | Notes |
-| ---- | -------------- | ----- |
-| `jsfiddle.html` | HTML | Already contains the thought-process comment the brief requires at the top. |
-| `jsfiddle.scss` | CSS (set language = SCSS) | Flattened from `src/styles.scss`; uses legacy `darken()` / `lighten()` instead of `@use "sass:color"` so JSFiddle's SCSS preprocessor accepts it. |
-| `jsfiddle.js` | JavaScript | Plain JS equivalent of `src/buttons.ts` + `src/config.ts`, inlined since JSFiddle doesn't bundle TS imports. |
+| File          | Purpose                                                                |
+| ------------- | ---------------------------------------------------------------------- |
+| `index.html`  | Full HTML doc for Pages; body-only markup is what you paste to JSFiddle. |
+| `styles.scss` | **Only stylesheet source.** Paste into JSFiddle's CSS box (language = SCSS). |
+| `styles.css`  | Generated from `styles.scss` by `bun run build`. Gitignored. Served by Pages. |
+| `main.js`     | Plain JS — no compile step. Paste into JSFiddle's JS box.              |
 
-The repo version (Vite + TS + SCSS) is the source of truth; these files are
-derived. When iterating, edit `src/` first, then resync this folder.
+## JSFiddle paste recipe
+
+1. **HTML box** → everything inside `<body>` of `index.html` (the
+   `<!-- design decisions -->` comment and the `<main>`). JSFiddle wraps
+   the doc for you; you don't need the `<link>`/`<script>` tags.
+2. **CSS box** (language dropdown = **SCSS**) → full contents of
+   `styles.scss`.
+3. **JS box** → full contents of `main.js`.
+
+The `@font-face` rules + Colonist CDN preconnect live in `index.html`'s
+`<head>` — also paste those into a JSFiddle `<style>` block if you want
+the brand typography in the fiddle preview.

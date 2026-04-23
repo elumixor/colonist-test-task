@@ -47,12 +47,9 @@ async function handleSecondaryClick() {
   } catch (err) {
     console.warn("[colonist/leaderboards] fetch failed, falling back", err);
   } finally {
-    // Brief pause so the status line is readable before we navigate away.
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setTimeout(
-      () => window.location.assign(COLONIST.leaderboardsUrl),
-      reduced ? 0 : 600,
-    );
+    // Navigate immediately — a click has already committed the user;
+    // holding them on the page to read a status line just adds latency.
+    window.location.assign(COLONIST.leaderboardsUrl);
   }
 }
 

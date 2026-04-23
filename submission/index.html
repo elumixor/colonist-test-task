@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Colonist — Checkered CTA A/B Variant</title>
+    <meta
+      name="description"
+      content="A/B test variant: checkered primary/secondary CTA layout for the Colonist.io homepage."
+    />
+    <link rel="icon" href="data:," />
+    <!-- Generated from styles.scss by `bun run build`. Not committed.
+         @font-face declarations now live at the top of styles.scss so the
+         JSFiddle CSS box is self-contained. -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!--
+      =====================================================================
+      Colonist — Checkered CTA A/B Variant
+      =====================================================================
+      Time spent:  ~2 hours (scaffolding + implementation + responsive +
+                             deploy + brief-compliance iteration + review).
+      AI usage:    Claude Code (Opus 4.7) scaffolded the repo, the GitHub
+                   Pages deploy workflow, and the Playwright smoke tests.
+                   Every design decision below was reviewed and approved
+                   before commit.
+
+      Live repo:   https://github.com/elumixor/colonist-test-task
+      Live demo:   https://elumixor.github.io/colonist-test-task/
+
+      Design decisions
+      ----------------
+      1. Layout = CSS Grid 2x2, primary in cell (1,1), secondary in cell
+         (2,2). No absolute positioning, no JS measurement — the empty
+         diagonal cells do the work of making this read as "checkered".
+
+      2. Two container-query scopes:
+           - Named `slot` on `.cta-slot`: width of the embed → controls
+             whether the grid is 2-col (checkered) or 1-col (stacked).
+           - Unnamed on each `.cta`: width of the button → controls title
+             and subtitle font size, so titles never overflow on tablet
+             widths where the slot is wide but each cell is narrow.
+         No viewport media queries — a slot of 768 px has nothing to do
+         with a phone at 768 px.
+
+      3. Aspect ratio locked at 3.5 (matches the orange reference). Both
+         buttons share it; hard requirement from the brief. `white-space:
+         nowrap` on the title prevents two-line breaks at tablet widths.
+
+      4. Max width capped at 500 px per the brief. Below ~420 px of slot
+         width the grid collapses to a single column so the subtitle
+         stays legible.
+
+      5. Typography: "Wicked Mouse" for titles (Colonist's brand display
+         face, hot-linked from their CDN with open CORS) and "Vremena
+         Grotesk Bold" for body. Flat vertical gradients, no drop shadow.
+
+      6. Primary CTA = same-tab navigation to a quick-play room.
+
+      7. Secondary CTA = Colonist leaderboards API per the brief. Label
+         and destination intentionally match ("LEADERBOARDS" → /leaderboards)
+         so the click never surprises the player. On colonist.io the fetch
+         is same-origin and returns JSON; when embedded cross-origin the
+         response is blocked — the click still navigates, since a failed
+         fetch should never waste a tap.
+
+      8. Accessibility: native <button> elements, visible focus ring,
+         aria-busy on the in-flight secondary, aria-live status line, and
+         a `prefers-reduced-motion` opt-out.
+    -->
+    <main class="cta-slot" aria-label="Colonist call-to-action buttons">
+      <div class="cta-grid">
+        <button
+          type="button"
+          class="cta cta--primary"
+          data-cta="primary"
+          aria-label="Quick play — jump straight into a live game"
+        >
+          <span class="cta__title">QUICK PLAY</span>
+          <span class="cta__subtitle">One click, straight into a live game</span>
+        </button>
+
+        <button
+          type="button"
+          class="cta cta--secondary"
+          data-cta="secondary"
+          aria-label="Leaderboards — see the top Colonist players"
+        >
+          <span class="cta__title">LEADERBOARDS</span>
+          <span class="cta__subtitle">See the top players of the season</span>
+        </button>
+      </div>
+
+      <p class="cta-slot__status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="main.js"></script>
+  </body>
+</html>

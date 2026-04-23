@@ -24,20 +24,17 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies
+      - name: Install sass
         run: bun install --frozen-lockfile
 
-      - name: Build
-        env:
-          # GitHub Pages serves under /<repo>/, so asset URLs must be prefixed.
-          VITE_BASE: /${{ github.event.repository.name }}/
+      - name: Compile SCSS → CSS
         run: bun run build
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: submission
 
   deploy:
     needs: build

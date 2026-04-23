@@ -1,21 +1,17 @@
 {
-  "name": "colonist-test-task",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Colonist take-home: checkered CTA button layout for A/B testing.",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --port 4173",
-    "check": "biome check .",
-    "check:fix": "biome check --write ."
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.3.10",
-    "@types/node": "^25.6.0",
-    "sass": "^1.83.4",
-    "typescript": "^5.7.3",
-    "vite": "^6.0.7"
-  }
+	"name": "colonist-checkered-cta",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Colonist take-home: checkered CTA A/B variant. Plain HTML/JS + SCSS compiled by `sass`.",
+	"scripts": {
+		"build": "bunx sass submission/styles.scss submission/styles.css --no-source-map --style=expanded",
+		"watch": "bunx sass --watch submission/styles.scss submission/styles.css --no-source-map",
+		"serve": "bunx browser-sync start --server submission --port 4173 --no-notify --no-open --files 'submission/**/*'",
+		"dev": "bun run build && concurrently -k -n sass,serve -c green,cyan \"bun run watch\" \"bun run serve\""
+	},
+	"devDependencies": {
+		"browser-sync": "^3.0.4",
+		"concurrently": "^9.2.1",
+		"sass": "^1.99.0"
+	}
 }

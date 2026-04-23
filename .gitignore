@@ -1,10 +1,9 @@
 node_modules/
-dist/
-.vite/
 .DS_Store
 *.log
-.env
-.env.*
-!.env.example
 .playwright-mcp/
-*.tsbuildinfo
+
+# Generated from submission/styles.scss by `bun run build`.
+# Also produced in CI before the Pages deploy — never hand-edited.
+submission/styles.css
+submission/styles.css.map

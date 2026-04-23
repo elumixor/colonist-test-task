@@ -1,13 +1,23 @@
+// --- Fonts ------------------------------------------------------------------
+// Wicked Mouse is Colonist's display face, hot-linked from their CDN
+// (open CORS). Vremena Grotesk Bold is a commercial TypeType face — the
+// stack falls back to Inter / system sans if it isn't served.
+@font-face {
+  font-family: "Wicked Mouse";
+  src: url("https://cdn.colonist.io/dist/assets/WickedMouse.f0105b5f5ecddbca01a3.otf")
+    format("opentype");
+  font-display: swap;
+}
+
 // --- Tokens -----------------------------------------------------------------
-$color-bg: #20262e;
+$color-bg: #177fde;
 
-$orange-from: #f8a91a;
-$orange-to: #ec5b27;
-$orange-shadow: darken($orange-to, 22%);
+// Vertical gradients tuned to match the reference.
+$orange-top: #f5a623;
+$orange-bottom: #f06800;
 
-$green-base: #6cb424;
-$green-top: lighten($green-base, 6%);
-$green-shadow: darken($green-base, 22%);
+$green-top: #3bd836;
+$green-bottom: #1fab1c;
 
 // width / height of the orange reference button. Both CTAs share it.
 $cta-aspect: 3.5;
@@ -31,8 +41,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background: $color-bg;
-  // Colonist brand font. Loaded via the <link> tags in the HTML.
-  font-family: "Open Sans", sans-serif;
+  // Colonist brand type: Wicked Mouse (headings) / Vremena Grotesk Bold (body).
+  // @font-face declarations live in the HTML block.
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
   color: #fff;
   display: grid;
   place-items: center;
@@ -95,7 +106,7 @@ body {
   appearance: none;
   border: 0;
   margin: 0;
-  padding: clamp(8px, 3cqi, 22px) clamp(10px, 4cqi, 28px);
+  padding: clamp(4px, 2.2cqi, 18px) clamp(10px, 4cqi, 28px);
   font: inherit;
   color: #fff;
   text-align: center;
@@ -114,27 +125,27 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(2px, 1cqi, 8px);
+  gap: clamp(2px, 0.8cqi, 6px);
 
   border-radius: $cta-radius;
   overflow: hidden;
-  position: relative;
-  isolation: isolate;
 
   transition:
     transform 180ms $ease-pop,
-    box-shadow 180ms ease-out,
     filter 180ms ease-out;
 
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
-
-  &:focus-visible {
-    outline: 3px solid #fff;
-    outline-offset: 3px;
+  &:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
   }
 
   &:active {
     transform: translateY(1px) scale(0.995);
+  }
+
+  &:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
   }
 
   &[aria-busy="true"] {
@@ -144,12 +155,14 @@ body {
 }
 
 .cta__title {
-  font-family: "Open Sans", sans-serif;
-  font-weight: 800;
+  font-family: "Wicked Mouse", "Impact", sans-serif;
+  font-weight: 400;
   letter-spacing: clamp(0.4px, 0.4cqi, 1.4px);
   // cqi = button width, so the title scales with the cell — not the slot.
-  // Tuned so 12-char titles ("LEADERBOARDS") fit on one line at all sizes.
-  font-size: clamp(15px, 12.5cqi, 40px);
+  // Tuned so 12-char titles ("LEADERBOARDS") fit on one line at all sizes,
+  // AND so title + 2-line subtitle fit inside the 3.5 aspect-ratio box at
+  // the narrowest 2-col cell width (~200px) without being clipped.
+  font-size: clamp(13px, 9cqi, 34px);
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
@@ -157,58 +170,20 @@ body {
 }
 
 .cta__subtitle {
-  font-weight: 600;
-  font-size: clamp(10px, 4.2cqi, 16px);
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(10px, 4cqi, 17px);
   line-height: 1.15;
   opacity: 0.96;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 // --- Variants ---------------------------------------------------------------
 .cta--primary {
-  background: linear-gradient(140deg, $orange-from 0%, $orange-to 100%);
-  box-shadow:
-    0 6px 0 $orange-shadow,
-    0 10px 24px rgba(236, 91, 39, 0.35);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 8px 0 $orange-shadow,
-      0 16px 32px rgba(236, 91, 39, 0.45);
-    filter: brightness(1.04);
-  }
-
-  &:active {
-    box-shadow:
-      0 3px 0 $orange-shadow,
-      0 6px 14px rgba(236, 91, 39, 0.3);
-  }
+  background: linear-gradient(180deg, $orange-top 0%, $orange-bottom 100%);
 }
 
 .cta--secondary {
-  background: linear-gradient(180deg, $green-top 0%, $green-base 100%);
-  box-shadow:
-    0 6px 0 $green-shadow,
-    0 10px 24px rgba(108, 180, 36, 0.3);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 8px 0 $green-shadow,
-      0 16px 32px rgba(108, 180, 36, 0.45);
-    filter: brightness(1.05);
-  }
-
-  &:active {
-    box-shadow:
-      0 3px 0 $green-shadow,
-      0 6px 14px rgba(108, 180, 36, 0.3);
-  }
+  background: linear-gradient(180deg, $green-top 0%, $green-bottom 100%);
 }
 
 // --- Status line (used by the secondary while fetching) ---------------------
@@ -216,7 +191,7 @@ body {
   min-height: 1.4em;
   margin: $gap 0 0;
   font-size: 13px;
-  color: #b9c2cf;
+  color: rgba(255, 255, 255, 0.88);
   text-align: center;
   font-variant-numeric: tabular-nums;
 
