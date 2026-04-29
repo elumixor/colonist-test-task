@@ -10,9 +10,6 @@
       content="A/B test variant: checkered primary/secondary CTA layout for the Colonist.io homepage."
     />
     <link rel="icon" href="data:," />
-    <!-- Generated from styles.scss by `bun run build`. Not committed.
-         @font-face declarations now live at the top of styles.scss so the
-         JSFiddle CSS box is self-contained. -->
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -20,12 +17,6 @@
       =====================================================================
       Colonist — Checkered CTA A/B Variant
       =====================================================================
-      Time spent:  ~2 hours (scaffolding + implementation + responsive +
-                             deploy + brief-compliance iteration + review).
-      AI usage:    Claude Code (Opus 4.7) scaffolded the repo, the GitHub
-                   Pages deploy workflow, and the Playwright smoke tests.
-                   Every design decision below was reviewed and approved
-                   before commit.
 
       Live repo:   https://github.com/elumixor/colonist-test-task
       Live demo:   https://elumixor.github.io/colonist-test-task/
@@ -57,18 +48,29 @@
          face, hot-linked from their CDN with open CORS) and "Vremena
          Grotesk Bold" for body. Flat vertical gradients, no drop shadow.
 
-      6. Primary CTA = same-tab navigation to a quick-play room.
+      Iteration 2 — live data layer (2026-04-29)
+      ------------------------------------------
+      6. Both CTAs now fetch real Colonist data on load, behind a tiny
+         Cloudflare Worker proxy (see /proxy) that adds CORS headers to
+         four allowlisted GETs.
 
-      7. Secondary CTA = Colonist leaderboards API per the brief. Label
-         and destination intentionally match ("LEADERBOARDS" → /leaderboards)
-         so the click never surprises the player. On colonist.io the fetch
-         is same-origin and returns JSON; when embedded cross-origin the
-         response is blocked — the click still navigates, since a failed
-         fetch should never waste a tap.
+      7. Primary CTA — `/api/room-list.json`. We pick a real, joinable
+         room with humans already waiting and deep-link straight into it
+         on click, instead of dumping the user at the generic `#quickplay`
+         queue. The button shows live counts and the seats remaining in
+         the room you're about to enter. Falls back to `#quickplay` when
+         no joinable rooms exist or the proxy is unreachable.
 
-      8. Accessibility: native <button> elements, visible focus ring,
-         aria-busy on the in-flight secondary, aria-live status line, and
-         a `prefers-reduced-motion` opt-out.
+      8. Secondary CTA — `/api/leaderboards-tabs/`. The upstream is
+         geo-personalised: a viewer in Berlin sees "S16 · EU" on the
+         button, a viewer in Toronto sees "S16 · NA". The pill makes the
+         personalisation visible *before* the click, which is the part
+         that's invisible on the current homepage.
+
+      9. Live "pill" badge (top-right of each button) is the audit trail
+         for the API integration — it only renders when real data has
+         landed, so it doubles as a visible health indicator. Pulsing
+         dot is hidden under `prefers-reduced-motion`.
     -->
     <main class="cta-slot" aria-label="Colonist call-to-action buttons">
       <div class="cta-grid">
@@ -78,6 +80,7 @@
           data-cta="primary"
           aria-label="Quick play — jump straight into a live game"
         >
+          <span class="cta__pill" aria-hidden="true"></span>
           <span class="cta__title">QUICK PLAY</span>
           <span class="cta__subtitle">One click, straight into a live game</span>
         </button>
@@ -88,12 +91,11 @@
           data-cta="secondary"
           aria-label="Leaderboards — see the top Colonist players"
         >
+          <span class="cta__pill" aria-hidden="true"></span>
           <span class="cta__title">LEADERBOARDS</span>
           <span class="cta__subtitle">See the top players of the season</span>
         </button>
       </div>
-
-      <p class="cta-slot__status" role="status" aria-live="polite"></p>
     </main>
 
     <script src="main.js"></script>

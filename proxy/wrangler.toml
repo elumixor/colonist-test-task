@@ -1,0 +1,6 @@
+name = "colonist-cta-proxy"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Workers free plan is fine for this; the four allowlisted endpoints sit
+# behind a 15s–60min edge cache so request volume stays trivial.

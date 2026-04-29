@@ -1,0 +1,14 @@
+{
+	"name": "colonist-cta-proxy",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Cloudflare Worker that adds CORS headers to a small allowlist of public Colonist endpoints, so the static demo on github.io can call them from the browser.",
+	"scripts": {
+		"dev": "wrangler dev --port 8787",
+		"deploy": "wrangler deploy",
+		"tail": "wrangler tail"
+	},
+	"devDependencies": {
+		"wrangler": "^3.90.0"
+	}
+}

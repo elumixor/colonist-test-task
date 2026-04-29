@@ -12,6 +12,10 @@ Conventions Claude Code should follow when editing this repo.
   locally (`bun run build`) and in CI before the Pages upload.
 - No runtime dependencies. One dev-dep (`sass`). Adding another is a real
   decision — flag it first.
+- `proxy/` is a sibling project (its own `package.json`, its own deploy):
+  a tiny Cloudflare Worker that adds CORS headers to a four-endpoint
+  allowlist of public Colonist APIs. Only touched when the API surface
+  the CTAs consume changes.
 
 ## Commands
 
@@ -49,6 +53,13 @@ bun run dev          # one-shot build + `watch` + `serve` concurrently (Ctrl+C k
 
 - Colonist URLs live in the `COLONIST` const at the top of
   `submission/main.js`. Changing endpoints is a one-block edit there.
+- The Cloudflare Worker base URL lives in `PROXY_BASE` at the top of
+  `submission/main.js`. After running `cd proxy && wrangler deploy`,
+  paste the `*.workers.dev` hostname there. Empty string is allowed and
+  the page falls back to static navigation.
+- Worker's allowlist lives in `proxy/src/index.js` (the `ALLOW` map).
+  Adding a new upstream path means: add it to that map *and* add the
+  fetch call in `submission/main.js`. Both sides need to know.
 
 ## Git
 
