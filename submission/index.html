@@ -103,22 +103,47 @@
           type="button"
           class="cta cta--secondary"
           data-cta="secondary"
-          aria-label="Leaderboards — see the top Colonist players"
+          aria-haspopup="dialog"
+          aria-label="Leaderboards — open the live API response"
         >
           <span class="cta__title">LEADERBOARDS</span>
           <span class="cta__subtitle">See the top players of the season</span>
         </button>
-
-        <!--
-          Region tabs sit under the secondary in cell (3,2). JS populates
-          this from `/api/leaderboards-tabs/` (geo-personalised by IP at
-          the upstream), one chip per scope: Global / your continent /
-          your country / your region. Each chip deep-links to that
-          specific leaderboard.
-        -->
-        <nav class="region-tabs" aria-label="Leaderboard scopes"></nav>
       </div>
     </main>
+
+    <!--
+      Click on LEADERBOARDS opens this dialog. JS samples usernames from
+      /api/room-list.json + /api/game-list.json, fetches each player's
+      public profile via /api/profile/<username>/overview, and ranks them
+      by last-100 score. So the modal is "real top players, right now"
+      — multiple endpoints stitched together, all served live through
+      the proxy.
+    -->
+    <dialog class="lb-modal" aria-labelledby="lb-modal-title">
+      <button type="button" class="lb-modal__close" aria-label="Close">×</button>
+      <header class="lb-modal__head">
+        <h2 id="lb-modal-title" class="lb-modal__title">Leaderboards · live</h2>
+        <p class="lb-modal__source">
+          From
+          <code>/api/room-list.json</code> +
+          <code>/api/game-list.json</code> +
+          <code>/api/profile/&lt;user&gt;/overview</code>
+        </p>
+      </header>
+      <section class="lb-modal__season">
+        <strong class="lb-modal__season-num">Season —</strong>
+        <span class="lb-modal__countdown">—</span>
+      </section>
+      <section class="lb-modal__scopes">
+        <h3 class="lb-modal__scopes-heading">Top players · active right now</h3>
+        <p class="lb-modal__hint">
+          Sampled from active rooms and games, ranked by points scored
+          across their last 100 games.
+        </p>
+        <ul class="lb-modal__list"></ul>
+      </section>
+    </dialog>
 
     <script src="main.js"></script>
   </body>

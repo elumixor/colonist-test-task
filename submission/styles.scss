@@ -153,16 +153,11 @@ body {
 //   │ primary  │          │
 //   ├──────────┼──────────┤
 //   │          │ secondary│
-//   ├──────────┼──────────┤
-//   │          │ chips    │
 //   └──────────┴──────────┘
-//
-// Region-tabs live in cell (3,2), aligned under the secondary.
 .cta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: $gap;
-  align-items: start;
 }
 
 .cta--primary {
@@ -175,14 +170,6 @@ body {
   grid-column: 2;
   grid-row: 2;
   justify-self: end;
-}
-
-.region-tabs {
-  grid-column: 2;
-  grid-row: 3;
-  justify-self: end;
-  width: 100%;
-  max-width: $cta-max-width;
 }
 
 // Below ~420 px of slot width, each cell is only ~160 px wide — too narrow
@@ -199,11 +186,6 @@ body {
   .cta--secondary {
     grid-column: 1;
     grid-row: 2;
-  }
-  .region-tabs {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: stretch;
   }
 }
 
@@ -290,66 +272,189 @@ body {
 
 .cta--secondary {
   background: linear-gradient(180deg, $green-top 0%, $green-bottom 100%);
-
-  // No click action — the secondary is a live data display, not a CTA.
-  // Drop the pointer cursor and the hover-lift so it reads as a passive
-  // surface and doesn't promise navigation that won't happen.
-  cursor: default;
-
-  &:hover,
-  &:active {
-    transform: none;
-    filter: none;
-  }
 }
 
-// --- Region tabs ------------------------------------------------------------
-// Visualises the geo-personalized `tableTabs` from /api/leaderboards-tabs/.
-// Each chip is an <a> deep-linking to a specific leaderboard scope, so a
-// viewer in Berlin sees Global / EU / DE / Berlin chips, a viewer in
-// Toronto sees Global / NA / CA / Ontario, etc. Hidden until JS populates
-// it, so the empty state never flashes.
-.region-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: clamp(4px, 1cqi, 8px);
-
-  opacity: 0;
-  transform: translateY(-4px);
-  transition:
-    opacity 280ms ease-out,
-    transform 280ms ease-out;
-
-  &[data-active="true"] {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-// Chips are passive labels (the API result made visible) — they do not
-// navigate. Flat styling, no hover lift, so they read as data badges
-// rather than buttons.
-.region-tabs__chip {
-  display: inline-block;
-  padding: clamp(4px, 1.2cqi, 8px) clamp(10px, 2.4cqi, 14px);
-  border-radius: 999px;
-
-  background: rgba(255, 255, 255, 0.16);
+// --- Leaderboards modal -----------------------------------------------------
+// Opens when the secondary CTA is clicked. Shows the live response from
+// /api/leaderboards-tabs/ in plain language: season + countdown, plus the
+// geo-personalised scope list with each scope's kind tagged ("global",
+// "continent", "country", "region"). No navigation — the data IS the
+// outcome.
+.lb-modal {
+  border: 0;
+  padding: 0;
+  border-radius: 18px;
+  width: min(440px, calc(100vw - 32px));
+  background: #0d3a66;
   color: #fff;
   font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
-  font-weight: 700;
-  font-size: clamp(10px, 2cqi, 13px);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  user-select: none;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  overflow: visible;
+
+  &::backdrop {
+    background: rgba(8, 24, 48, 0.55);
+    backdrop-filter: blur(3px);
+  }
+
+  // Slight scale-in when the dialog opens.
+  &[open] {
+    animation: lb-modal-in 220ms $ease-pop both;
+  }
 }
 
-@container slot (max-width: 420px) {
-  .region-tabs {
-    justify-content: center;
+@keyframes lb-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
   }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lb-modal__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease-out;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.lb-modal__head {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lb-modal__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lb-modal__source {
+  margin: 0;
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+
+  code {
+    font-family: ui-monospace, "Menlo", "Consolas", monospace;
+    font-size: 11.5px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+}
+
+.lb-modal__season {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 24px 4px;
+}
+
+.lb-modal__season-num {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lb-modal__countdown {
+  font-family: ui-monospace, "Menlo", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.lb-modal__scopes {
+  padding: 12px 24px 22px;
+}
+
+.lb-modal__scopes-heading {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.lb-modal__hint {
+  margin: 0 0 12px;
+  font-weight: 400;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.lb-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lb-modal__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.lb-modal__rank {
+  font-family: ui-monospace, "Menlo", "Consolas", monospace;
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+  grid-row: span 2;
+  align-self: center;
+}
+
+.lb-modal__name {
+  font-size: 15px;
+}
+
+.lb-modal__stats {
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-modal__item--note {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+  background: transparent;
+  padding: 14px;
 }
 
 @media (prefers-reduced-motion: reduce) {

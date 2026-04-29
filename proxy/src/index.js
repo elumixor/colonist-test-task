@@ -21,6 +21,13 @@ const ALLOW = new Map([
 	["/api/regions.json", { ttl: 3600 }],
 ]);
 
+// Pattern-allowed routes. Profile overviews are read-only public data
+// (karma, total games, win %, last-100 points), and the username is the
+// only variable bit. Tight regex on the encoded URL.pathname so we never
+// proxy anything outside this shape.
+const PROFILE_OVERVIEW_RE = /^\/api\/profile\/[A-Za-z0-9_%.\-]+\/overview$/;
+const PROFILE_OVERVIEW_TTL = 120;
+
 function corsHeaders(origin) {
 	return {
 		"access-control-allow-origin": origin || "*",
@@ -46,7 +53,9 @@ export default {
 			});
 		}
 
-		const route = ALLOW.get(url.pathname);
+		const route =
+			ALLOW.get(url.pathname) ??
+			(PROFILE_OVERVIEW_RE.test(url.pathname) ? { ttl: PROFILE_OVERVIEW_TTL } : null);
 		if (!route) {
 			return new Response("not found", {
 				status: 404,

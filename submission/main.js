@@ -49,6 +49,16 @@ const FETCH_TIMEOUT_MS = 2500;
 // State + DOM
 // ---------------------------------------------------------------------------
 let bestRoomId = null;
+let lastLeaderboardsData = null;
+let lastRoomData = null;
+let lastGameData = null;
+let lbModalCountdownInterval = null;
+
+// Cap how many profiles we fetch when building the modal's player
+// ranking. Each call hits the proxy (which caches at 120s), and bigger
+// samples surface stronger players, but we don't need 50.
+const PLAYER_SAMPLE_SIZE = 12;
+const PLAYER_SHOW_TOP = 5;
 
 const primary = document.querySelector('[data-cta="primary"]');
 const secondary = document.querySelector('[data-cta="secondary"]');
@@ -60,7 +70,11 @@ const liveBarPlaying = liveBar.querySelector('[data-stat="playing"]');
 const liveBarRooms = liveBar.querySelector('[data-stat="rooms"]');
 const liveBarSeason = liveBar.querySelector('[data-stat="season"]');
 
-const regionTabs = document.querySelector(".region-tabs");
+const lbModal = document.querySelector(".lb-modal");
+const lbModalClose = lbModal.querySelector(".lb-modal__close");
+const lbModalSeason = lbModal.querySelector(".lb-modal__season-num");
+const lbModalCountdown = lbModal.querySelector(".lb-modal__countdown");
+const lbModalList = lbModal.querySelector(".lb-modal__list");
 
 // ---------------------------------------------------------------------------
 // Click handlers
@@ -72,10 +86,30 @@ primary.addEventListener("click", () => {
   window.location.assign(url);
 });
 
-// The secondary intentionally has no click handler. Its job is to *show*
-// what /api/leaderboards-tabs/ returned (live season countdown in the
-// subtitle, geo-personalised chip row below) — not to redirect the user
-// to colonist.io, which would make the API call invisible to a reviewer.
+// Click on the secondary opens an in-page dialog with a real "top
+// players right now" ranking — usernames pulled from the live
+// /api/room-list.json + /api/game-list.json, then each player's public
+// profile fetched via /api/profile/<username>/overview, sorted by
+// last-100-games points. No redirect — a redirect would make the API
+// result invisible to anyone reviewing the page.
+secondary.addEventListener("click", () => {
+  lbModal.showModal();
+  populateModal();
+});
+
+lbModalClose.addEventListener("click", () => lbModal.close());
+
+// Backdrop click closes — the dialog itself is the only thing inside the
+// `<dialog>`, so a click whose target is the dialog element means the
+// user clicked outside the inner card.
+lbModal.addEventListener("click", (e) => {
+  if (e.target === lbModal) lbModal.close();
+});
+
+lbModal.addEventListener("close", () => {
+  if (lbModalCountdownInterval) clearInterval(lbModalCountdownInterval);
+  lbModalCountdownInterval = null;
+});
 
 // ---------------------------------------------------------------------------
 // Live data
@@ -96,6 +130,9 @@ async function refreshActivity() {
     fetchJson(ENDPOINTS.rooms),
     fetchJson(ENDPOINTS.games),
   ]);
+
+  lastRoomData = roomData;
+  lastGameData = gameData;
 
   if (roomData?.rooms) {
     const joinable = roomData.rooms.filter(isJoinable).sort(byMostFull);
@@ -163,6 +200,8 @@ async function refreshLeaderboards() {
   const data = await fetchJson(ENDPOINTS.leaderboards);
   if (!data) return;
 
+  lastLeaderboardsData = data;
+
   const season = data.activeSeasonData?.name?.options?.seasonNumber;
   const region = pickRegionLabel(data.tableTabs);
 
@@ -172,13 +211,11 @@ async function refreshLeaderboards() {
   if (parts.length > 0) liveBarSeason.textContent = parts.join(" · ");
 
   // Live season countdown drives the subtitle. Ticking-second animation
-  // is the strongest proof on the page that the API call is real — it's
-  // not something a static mock can fake.
+  // is the strongest at-rest proof on the page that the API call is real
+  // — clicking the button opens the modal with the full breakdown.
   if (data.activeSeasonData?.endDate) {
     startSeasonCountdown(data.activeSeasonData.endDate);
   }
-
-  renderRegionTabs(data.tableTabs);
 
   showBar();
 }
@@ -199,41 +236,130 @@ function pickRegionLabel(tabs) {
 }
 
 // ---------------------------------------------------------------------------
-// Region tabs — visualises the geo-personalised tableTabs from the API as
-// passive label chips. The chips don't navigate (a click that leaves the
-// page would make the API call invisible to a reviewer) — they exist to
-// show that the API tailored this list to the viewer's location: a
-// viewer in Berlin sees Global / EU / DE / Berlin; a viewer in Toronto
-// sees Global / NA / CA / Ontario; etc.
+// Leaderboards modal — builds a "top players right now" ranking from
+// three real Colonist endpoints:
+//
+//   1. /api/room-list.json + /api/game-list.json  → list of usernames
+//      currently in public rooms or playing public games.
+//   2. /api/profile/<username>/overview  → karma + last-100 score +
+//      games + win % per player.
+//   3. /api/leaderboards-tabs/  → active season number + endDate for the
+//      countdown, geo-personalised label.
+//
+// Sample up to PLAYER_SAMPLE_SIZE usernames in parallel, sort by
+// last-100-games points (the closest thing the public profile API has
+// to a ranking metric), show top PLAYER_SHOW_TOP. Each row shows where
+// the data came from on hover via the `title` attribute.
 // ---------------------------------------------------------------------------
-function renderRegionTabs(tabs) {
-  if (!regionTabs || !Array.isArray(tabs)) return;
+async function populateModal() {
+  // Season + countdown line up first so the modal isn't empty while the
+  // profile fetches resolve.
+  paintSeasonLine();
+  paintList(loadingItem("Sampling active players…"));
 
-  const chips = tabs
-    .filter((t) => t.leaderboardUrl !== "Friends") // Friends tab requires login.
-    .map((tab) => {
-      const span = document.createElement("span");
-      span.className = "region-tabs__chip";
-      span.textContent = tabLabel(tab);
-      return span;
-    });
+  const usernames = collectUsernames(lastRoomData?.rooms, lastGameData?.games);
+  if (usernames.length === 0) {
+    paintList(loadingItem("No public rooms or games to sample yet."));
+    return;
+  }
 
-  if (chips.length === 0) return;
-  regionTabs.replaceChildren(...chips);
-  regionTabs.setAttribute("data-active", "true");
+  const sample = usernames.slice(0, PLAYER_SAMPLE_SIZE);
+  const profiles = await Promise.all(
+    sample.map((u) => fetchJson(`/api/profile/${encodeURIComponent(u)}/overview`)),
+  );
+
+  const ranked = profiles
+    .filter((p) => p?.gameData?.pointsInLast100Games != null)
+    .sort(
+      (a, b) =>
+        (b.gameData.pointsInLast100Games ?? 0) - (a.gameData.pointsInLast100Games ?? 0),
+    )
+    .slice(0, PLAYER_SHOW_TOP);
+
+  if (ranked.length === 0) {
+    paintList(loadingItem("Couldn't load profile data."));
+    return;
+  }
+
+  paintList(...ranked.map((p, i) => playerRow(p, i + 1)));
 }
 
-function tabLabel(tab) {
-  if (typeof tab.label === "string") return tab.label;
-  // i18n keys look like "strings:leaderboardPage.tabs.global" or
-  // "strings:leaderboardPage.tabs.continents.EU" — the suffix is the
-  // most-readable thing we can extract without shipping a translation
-  // table.
-  if (tab.label?.key) {
-    const last = tab.label.key.split(".").pop();
-    return last.charAt(0).toUpperCase() + last.slice(1);
-  }
-  return tab.leaderboardUrl || "Global";
+function paintSeasonLine() {
+  const data = lastLeaderboardsData;
+  const season = data?.activeSeasonData?.name?.options?.seasonNumber;
+  lbModalSeason.textContent = season != null ? `Season ${season}` : "Season —";
+
+  const endDate = data?.activeSeasonData?.endDate;
+  const tickCountdown = () => {
+    if (!endDate) {
+      lbModalCountdown.textContent = "";
+      return;
+    }
+    const remaining = Math.max(0, new Date(endDate).getTime() - Date.now());
+    lbModalCountdown.textContent =
+      remaining === 0 ? "Season ended" : `Ends in ${formatRemaining(remaining)}`;
+  };
+  tickCountdown();
+  if (lbModalCountdownInterval) clearInterval(lbModalCountdownInterval);
+  lbModalCountdownInterval = setInterval(tickCountdown, 1000);
+}
+
+function paintList(...items) {
+  lbModalList.replaceChildren(...items);
+}
+
+function loadingItem(text) {
+  const li = document.createElement("li");
+  li.className = "lb-modal__item lb-modal__item--note";
+  li.textContent = text;
+  return li;
+}
+
+function playerRow(profile, rank) {
+  const { username, karma, gameData = {} } = profile;
+  const li = document.createElement("li");
+  li.className = "lb-modal__item";
+
+  const rankEl = document.createElement("span");
+  rankEl.className = "lb-modal__rank";
+  rankEl.textContent = `#${rank}`;
+
+  const nameEl = document.createElement("strong");
+  nameEl.className = "lb-modal__name";
+  nameEl.textContent = username;
+
+  const stats = document.createElement("span");
+  stats.className = "lb-modal__stats";
+  const pil = gameData.pointsInLast100Games ?? "—";
+  const games = gameData.totalGames ?? "—";
+  const win = gameData.winPercent ?? "—";
+  stats.textContent = `${pil} pts · ${games} games · ${win}% W · karma ${karma ?? "—"}`;
+
+  li.append(rankEl, nameEl, stats);
+  return li;
+}
+
+// Walk the cached room+game data and return unique non-bot usernames.
+// Players in mid-game (`game-list`) tend to be more committed than
+// people lurking in lobbies, so they go first; lobby players fill out
+// the sample.
+function collectUsernames(rooms, games) {
+  const seen = new Set();
+  const ordered = [];
+  const collect = (list) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      for (const p of item.players ?? []) {
+        if (p.isBot || !p.username) continue;
+        if (seen.has(p.username)) continue;
+        seen.add(p.username);
+        ordered.push(p.username);
+      }
+    }
+  };
+  collect(games);
+  collect(rooms);
+  return ordered;
 }
 
 // ---------------------------------------------------------------------------
