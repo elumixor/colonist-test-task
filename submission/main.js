@@ -19,7 +19,7 @@
 // disables the live layer and the page falls back to static navigation
 // (#quickplay / /leaderboards), so the demo never breaks if the proxy
 // is down or hasn't been deployed yet.
-const PROXY_BASE = "";
+const PROXY_BASE = "https://colonist-cta-proxy.colonist-cta-proxy.workers.dev";
 
 const COLONIST = {
   quickPlayFallback: "https://colonist.io/#quickplay",
