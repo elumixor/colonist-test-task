@@ -15,73 +15,73 @@ const UPSTREAM = "https://colonist.io";
 //     5 min is plenty.
 //   * regions.json is effectively static.
 const ALLOW = new Map([
-  ["/api/room-list.json",      { ttl: 15 }],
-  ["/api/game-list.json",      { ttl: 15 }],
-  ["/api/leaderboards-tabs/",  { ttl: 300 }],
-  ["/api/regions.json",        { ttl: 3600 }],
+	["/api/room-list.json", { ttl: 15 }],
+	["/api/game-list.json", { ttl: 15 }],
+	["/api/leaderboards-tabs/", { ttl: 300 }],
+	["/api/regions.json", { ttl: 3600 }],
 ]);
 
 function corsHeaders(origin) {
-  return {
-    "access-control-allow-origin": origin || "*",
-    "access-control-allow-methods": "GET, OPTIONS",
-    "access-control-allow-headers": "accept, content-type",
-    "access-control-max-age": "86400",
-    "vary": "origin",
-  };
+	return {
+		"access-control-allow-origin": origin || "*",
+		"access-control-allow-methods": "GET, OPTIONS",
+		"access-control-allow-headers": "accept, content-type",
+		"access-control-max-age": "86400",
+		vary: "origin",
+	};
 }
 
 export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const origin = request.headers.get("origin") || "*";
+	async fetch(request) {
+		const url = new URL(request.url);
+		const origin = request.headers.get("origin") || "*";
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(origin) });
-    }
-    if (request.method !== "GET") {
-      return new Response("method not allowed", {
-        status: 405,
-        headers: corsHeaders(origin),
-      });
-    }
+		if (request.method === "OPTIONS") {
+			return new Response(null, { status: 204, headers: corsHeaders(origin) });
+		}
+		if (request.method !== "GET") {
+			return new Response("method not allowed", {
+				status: 405,
+				headers: corsHeaders(origin),
+			});
+		}
 
-    const route = ALLOW.get(url.pathname);
-    if (!route) {
-      return new Response("not found", {
-        status: 404,
-        headers: corsHeaders(origin),
-      });
-    }
+		const route = ALLOW.get(url.pathname);
+		if (!route) {
+			return new Response("not found", {
+				status: 404,
+				headers: corsHeaders(origin),
+			});
+		}
 
-    // We don't forward the user's IP. Cloudflare's edge already runs near
-    // the user, so upstream sees a regional CF address — close enough that
-    // Colonist's geo-personalization (continent / country) lands on the
-    // right region for our purposes.
-    let upstreamRes;
-    try {
-      upstreamRes = await fetch(UPSTREAM + url.pathname, {
-        cf: { cacheTtl: route.ttl, cacheEverything: true },
-        headers: { accept: "application/json" },
-      });
-    } catch (err) {
-      return new Response(JSON.stringify({ error: "upstream_unreachable" }), {
-        status: 502,
-        headers: {
-          ...corsHeaders(origin),
-          "content-type": "application/json",
-        },
-      });
-    }
+		// We don't forward the user's IP. Cloudflare's edge already runs near
+		// the user, so upstream sees a regional CF address — close enough that
+		// Colonist's geo-personalization (continent / country) lands on the
+		// right region for our purposes.
+		let upstreamRes;
+		try {
+			upstreamRes = await fetch(UPSTREAM + url.pathname, {
+				cf: { cacheTtl: route.ttl, cacheEverything: true },
+				headers: { accept: "application/json" },
+			});
+		} catch {
+			return new Response(JSON.stringify({ error: "upstream_unreachable" }), {
+				status: 502,
+				headers: {
+					...corsHeaders(origin),
+					"content-type": "application/json",
+				},
+			});
+		}
 
-    const body = await upstreamRes.arrayBuffer();
-    const headers = new Headers(corsHeaders(origin));
-    headers.set(
-      "content-type",
-      upstreamRes.headers.get("content-type") || "application/json",
-    );
-    headers.set("cache-control", `public, max-age=${route.ttl}`);
-    headers.set("x-proxied-by", "colonist-cta-proxy");
-    return new Response(body, { status: upstreamRes.status, headers });
-  },
+		const body = await upstreamRes.arrayBuffer();
+		const headers = new Headers(corsHeaders(origin));
+		headers.set(
+			"content-type",
+			upstreamRes.headers.get("content-type") || "application/json",
+		);
+		headers.set("cache-control", `public, max-age=${route.ttl}`);
+		headers.set("x-proxied-by", "colonist-cta-proxy");
+		return new Response(body, { status: upstreamRes.status, headers });
+	},
 };
