@@ -284,7 +284,12 @@ body {
   border: 0;
   padding: 0;
   border-radius: 18px;
-  width: min(440px, calc(100vw - 32px));
+  // Avoid CSS `min()` here — Sass shadows the name with a numeric
+  // function and older compilers (incl. JSFiddle's libsass) fail when
+  // the args aren't pure numbers. width + max-width gives the same
+  // 100vw-minus-gutter / capped-at-440 behaviour without the collision.
+  width: calc(100vw - 32px);
+  max-width: 440px;
   background: #0d3a66;
   color: #fff;
   font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
