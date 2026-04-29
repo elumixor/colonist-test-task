@@ -50,27 +50,66 @@
 
       Iteration 2 — live data layer (2026-04-29)
       ------------------------------------------
-      6. Both CTAs now fetch real Colonist data on load, behind a tiny
-         Cloudflare Worker proxy (see /proxy) that adds CORS headers to
-         four allowlisted GETs.
+      All Colonist API calls go through a tiny Cloudflare Worker (see
+      /proxy, ~80 lines) — colonist.io's API doesn't set CORS headers,
+      so direct browser fetches from github.io would otherwise be
+      blocked. The Worker allowlists four static GETs plus one regex
+      route for /api/profile/<username>/overview. Anything else 404s.
 
-      7. Primary CTA — `/api/room-list.json`. We pick a real, joinable
-         room with humans already waiting and deep-link straight into it
-         on click, instead of dumping the user at the generic `#quickplay`
-         queue. The button shows live counts and the seats remaining in
-         the room you're about to enter. Falls back to `#quickplay` when
-         no joinable rooms exist or the proxy is unreachable.
+      6. Live activity bar (above the CTAs).
+         Reads "● X in public rooms · Y rooms waiting · S16 · EU".
+         Counts tween smoothly between polls, the pulsing dot doubles as
+         a health indicator (only renders when real data has landed).
+         Sources: /api/room-list.json + /api/game-list.json (player
+         counts), /api/leaderboards-tabs/ (season + geo-personalised
+         region label, IP-based at the upstream).
 
-      8. Secondary CTA — `/api/leaderboards-tabs/`. The upstream is
-         geo-personalised: a viewer in Berlin sees "S16 · EU" on the
-         button, a viewer in Toronto sees "S16 · NA". The pill makes the
-         personalisation visible *before* the click, which is the part
-         that's invisible on the current homepage.
+      7. Primary CTA — instead of #quickplay queue.
+         Pre-fetches /api/room-list.json, filters for joinable rooms
+         with humans already inside, sorts by most-full so the game is
+         closest to starting, and deep-links into a specific real room
+         on click. Subtitle reads "Joining hill627 · 1/3 · 2 seats
+         open" — the destination is visible *before* the click. Falls
+         back to #quickplay if no rooms qualify or the proxy is
+         unreachable, so the click is never wasted.
 
-      9. Live "pill" badge (top-right of each button) is the audit trail
-         for the API integration — it only renders when real data has
-         landed, so it doubles as a visible health indicator. Pulsing
-         dot is hidden under `prefers-reduced-motion`.
+      8. Secondary CTA — opens an in-page popup, never redirects.
+         A redirect would make the API call invisible: even when it
+         worked, the data would be on the destination, not on the page
+         being reviewed. Click opens a dialog that stitches three
+         endpoints into a real "top players · active right now" panel:
+            (a) /api/room-list.json + /api/game-list.json
+                  → list of usernames currently in public rooms or
+                    playing public games
+            (b) /api/profile/<username>/overview  (per username, in
+                parallel) → karma, last-100 score, total games, win %
+            (c) /api/leaderboards-tabs/  → active season + endDate for
+                the live countdown
+         Up to 12 usernames sampled, sorted by points-in-last-100-games
+         (the closest thing the public profile API has to a ranking
+         metric), top 5 shown with stats. Source endpoints are listed
+         at the top of the modal so a reviewer can verify exactly where
+         the numbers came from.
+
+         Note: there's no public "leaderboard players" JSON endpoint —
+         /api/leaderboards/<mode>/<scope> is auth-gated and returns
+         invalidRankedMode unauthenticated. Building the equivalent
+         from the public profile API + active rooms/games is the
+         workaround.
+
+      9. Numbers honesty (no homepage scrape).
+         colonist.io's homepage shows ~6,100 online and ~240k games
+         today — those values are SSR'd into the homepage HTML as
+         window.onlineCount / window.gamesToday and never refreshed in
+         the session; there's no JSON endpoint exposing them. Across
+         all five main bundles (shared, shared-web, static-vendors,
+         vendors, web) and brute-forced /api/ paths, none surface the
+         counts. A scrape (60 s edge cache, single regex) would have
+         worked but: brittle to homepage HTML changes, outside what
+         Colonist publishes. So the bar shows the strict subset that
+         the documented JSON APIs do expose, labelled honestly as "in
+         public rooms" — every counted player is a real session in a
+         public room or game, no estimate.
     -->
     <main class="cta-slot" aria-label="Colonist call-to-action buttons">
       <header class="live-bar" aria-live="polite" aria-label="Live activity">
