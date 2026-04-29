@@ -2,16 +2,23 @@
 // Colonist CTAs — live API wiring
 // ---------------------------------------------------------------------------
 // Iteration 2 (2026-04-29): both buttons are now backed by real Colonist
-// data, with a live activity bar above them that reads like a stadium
-// ticker. Primary deep-links into a specific live room (not the generic
-// `#quickplay` queue). Secondary surfaces the geo-personalised season +
-// region — `/api/leaderboards-tabs/` is per-IP at the upstream, so a
-// reviewer in NA sees their continent, a reviewer in EU sees theirs.
+// data, with a live activity bar above and a regional-tabs strip below
+// the secondary that visualises the geo-personalised leaderboard tabs.
+// Primary deep-links into a specific live room (not the generic
+// `#quickplay` queue).
 //
 // Why a proxy: colonist.io's API doesn't set CORS headers, so the browser
-// can't call it directly from github.io. The /proxy folder ships a 70-line
-// Cloudflare Worker that allowlists exactly four GETs we need and adds
-// `access-control-allow-origin: *`. See proxy/README.md.
+// can't call it directly from github.io. The /proxy folder ships a small
+// Cloudflare Worker that allowlists exactly the four GETs we need and
+// adds `access-control-allow-origin: *`. See proxy/README.md.
+//
+// What we don't do: scrape `window.onlineCount` from the homepage HTML.
+// Those bigger numbers exist as SSR'd vars (~6k online, ~240k games/day),
+// but Colonist exposes no JSON endpoint for them and we'd be relying on
+// HTML structure that can change without notice. The numbers below come
+// straight from documented JSON endpoints, so they're a strict subset
+// (people in *publicly-listed* rooms / games), but every value is real
+// and stable.
 // ---------------------------------------------------------------------------
 
 // Cloudflare Worker base URL. Set after `cd proxy && wrangler deploy`;
@@ -21,10 +28,15 @@
 // is down or hasn't been deployed yet.
 const PROXY_BASE = "https://colonist-cta-proxy.colonist-cta-proxy.workers.dev";
 
+const COLONIST_BASE = "https://colonist.io";
 const COLONIST = {
-  quickPlayFallback: "https://colonist.io/#quickplay",
-  roomUrl: (id) => `https://colonist.io/${id}`,
-  leaderboardsUrl: "https://colonist.io/leaderboards",
+  quickPlayFallback: `${COLONIST_BASE}/#quickplay`,
+  roomUrl: (id) => `${COLONIST_BASE}/${id}`,
+  leaderboardsUrl: `${COLONIST_BASE}/leaderboards`,
+  // Colonist's own URL pattern: /leaderboards, /leaderboards/Continent/EU,
+  // /leaderboards/Country/CZ, /leaderboards/Country/CZ/10, etc.
+  leaderboardScopeUrl: (scope) =>
+    scope ? `${COLONIST_BASE}/leaderboards/${scope}` : `${COLONIST_BASE}/leaderboards`,
 };
 
 const ENDPOINTS = {
@@ -46,11 +58,14 @@ let bestRoomId = null;
 const primary = document.querySelector('[data-cta="primary"]');
 const secondary = document.querySelector('[data-cta="secondary"]');
 const primarySubtitle = primary.querySelector(".cta__subtitle");
+const secondarySubtitle = secondary.querySelector(".cta__subtitle");
 
 const liveBar = document.querySelector(".live-bar");
 const liveBarPlaying = liveBar.querySelector('[data-stat="playing"]');
 const liveBarRooms = liveBar.querySelector('[data-stat="rooms"]');
 const liveBarSeason = liveBar.querySelector('[data-stat="season"]');
+
+const regionTabs = document.querySelector(".region-tabs");
 
 // ---------------------------------------------------------------------------
 // Click handlers
@@ -58,9 +73,7 @@ const liveBarSeason = liveBar.querySelector('[data-stat="season"]');
 primary.addEventListener("click", () => {
   // If we found a live joinable room, deep-link there. Otherwise fall back
   // to the generic quick-play hash so the click is never wasted.
-  const url = bestRoomId
-    ? COLONIST.roomUrl(bestRoomId)
-    : COLONIST.quickPlayFallback;
+  const url = bestRoomId ? COLONIST.roomUrl(bestRoomId) : COLONIST.quickPlayFallback;
   window.location.assign(url);
 });
 
@@ -81,8 +94,8 @@ async function hydrate() {
 }
 
 async function refreshActivity() {
-  // Both endpoints in parallel — we need rooms for the deep-link and
-  // game-list for the "playing now" count of users actually mid-game.
+  // Both endpoints in parallel: rooms (deep-link target + waiting count)
+  // and games (humans currently in a public game).
   const [roomData, gameData] = await Promise.all([
     fetchJson(ENDPOINTS.rooms),
     fetchJson(ENDPOINTS.games),
@@ -98,14 +111,15 @@ async function refreshActivity() {
     } else {
       bestRoomId = null;
     }
-
     setStat(liveBarRooms, joinable.length);
   }
 
   if (roomData?.rooms || gameData?.games) {
-    const inRooms = countHumans(roomData?.rooms);
-    const inGames = countHumans(gameData?.games);
-    setStat(liveBarPlaying, inRooms + inGames);
+    // "Playing now" here means humans in publicly-listed rooms or games.
+    // It's a strict subset of total online (private rooms, matchmaking
+    // queue and idle-in-menu users aren't in either listing) — but every
+    // counted player is a real session in a real public room, no scrape.
+    setStat(liveBarPlaying, countHumans(roomData?.rooms) + countHumans(gameData?.games));
   }
 
   showBar();
@@ -162,9 +176,10 @@ async function refreshLeaderboards() {
   if (parts.length > 0) liveBarSeason.textContent = parts.join(" · ");
 
   if (region) {
-    secondary.querySelector(".cta__subtitle").textContent =
-      `Top players in ${region} this season`;
+    secondarySubtitle.textContent = `Top players in ${region} this season`;
   }
+
+  renderRegionTabs(data.tableTabs);
 
   showBar();
 }
@@ -182,6 +197,44 @@ function pickRegionLabel(tabs) {
   if (country && typeof country.label === "string") return country.label;
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Region tabs — visualises the geo-personalised tableTabs from the API as
+// clickable chips. Each chip deep-links to that specific scope on
+// colonist.io. The chips are the API result made tangible: a viewer in
+// Berlin sees Global / EU / DE / Berlin; a viewer in Toronto sees
+// Global / NA / CA / Ontario; etc.
+// ---------------------------------------------------------------------------
+function renderRegionTabs(tabs) {
+  if (!regionTabs || !Array.isArray(tabs)) return;
+
+  const chips = tabs
+    .filter((t) => t.leaderboardUrl !== "Friends") // Friends tab requires login.
+    .map((tab) => {
+      const a = document.createElement("a");
+      a.className = "region-tabs__chip";
+      a.textContent = tabLabel(tab);
+      a.href = COLONIST.leaderboardScopeUrl(tab.leaderboardUrl);
+      return a;
+    });
+
+  if (chips.length === 0) return;
+  regionTabs.replaceChildren(...chips);
+  regionTabs.setAttribute("data-active", "true");
+}
+
+function tabLabel(tab) {
+  if (typeof tab.label === "string") return tab.label;
+  // i18n keys look like "strings:leaderboardPage.tabs.global" or
+  // "strings:leaderboardPage.tabs.continents.EU" — the suffix is the
+  // most-readable thing we can extract without shipping a translation
+  // table.
+  if (tab.label?.key) {
+    const last = tab.label.key.split(".").pop();
+    return last.charAt(0).toUpperCase() + last.slice(1);
+  }
+  return tab.leaderboardUrl || "Global";
 }
 
 // ---------------------------------------------------------------------------

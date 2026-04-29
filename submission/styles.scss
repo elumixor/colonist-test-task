@@ -153,11 +153,16 @@ body {
 //   │ primary  │          │
 //   ├──────────┼──────────┤
 //   │          │ secondary│
+//   ├──────────┼──────────┤
+//   │          │ chips    │
 //   └──────────┴──────────┘
+//
+// Region-tabs live in cell (3,2), aligned under the secondary.
 .cta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: $gap;
+  align-items: start;
 }
 
 .cta--primary {
@@ -170,6 +175,14 @@ body {
   grid-column: 2;
   grid-row: 2;
   justify-self: end;
+}
+
+.region-tabs {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: end;
+  width: 100%;
+  max-width: $cta-max-width;
 }
 
 // Below ~420 px of slot width, each cell is only ~160 px wide — too narrow
@@ -186,6 +199,11 @@ body {
   .cta--secondary {
     grid-column: 1;
     grid-row: 2;
+  }
+  .region-tabs {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: stretch;
   }
 }
 
@@ -272,6 +290,68 @@ body {
 
 .cta--secondary {
   background: linear-gradient(180deg, $green-top 0%, $green-bottom 100%);
+}
+
+// --- Region tabs ------------------------------------------------------------
+// Visualises the geo-personalized `tableTabs` from /api/leaderboards-tabs/.
+// Each chip is an <a> deep-linking to a specific leaderboard scope, so a
+// viewer in Berlin sees Global / EU / DE / Berlin chips, a viewer in
+// Toronto sees Global / NA / CA / Ontario, etc. Hidden until JS populates
+// it, so the empty state never flashes.
+.region-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: clamp(4px, 1cqi, 8px);
+
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms ease-out;
+
+  &[data-active="true"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.region-tabs__chip {
+  display: inline-block;
+  padding: clamp(4px, 1.2cqi, 8px) clamp(10px, 2.4cqi, 14px);
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  text-decoration: none;
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(10px, 2cqi, 13px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  transition:
+    background 160ms ease-out,
+    transform 160ms $ease-pop;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.32);
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+@container slot (max-width: 420px) {
+  .region-tabs {
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -60,7 +60,7 @@ export default {
 		// right region for our purposes.
 		let upstreamRes;
 		try {
-			upstreamRes = await fetch(UPSTREAM + url.pathname, {
+			upstreamRes = await fetch(`${UPSTREAM}${url.pathname}`, {
 				cf: { cacheTtl: route.ttl, cacheEverything: true },
 				headers: { accept: "application/json" },
 			});
