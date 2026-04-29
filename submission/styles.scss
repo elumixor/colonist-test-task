@@ -58,6 +58,94 @@ body {
   width: 100%;
   max-width: calc(#{$cta-max-width} * 2 + #{$gap} * 2);
   container: slot / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+// --- Live activity bar ------------------------------------------------------
+// Esports-ticker style strip above the CTAs. Stays empty (`opacity: 0`)
+// until JS populates real numbers, so it doubles as a visible health
+// indicator: if the bar never appears, the proxy is down.
+.live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(6px, 1.6cqi, 14px);
+
+  padding: clamp(8px, 1.8cqi, 14px) clamp(14px, 3cqi, 22px);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(2px);
+
+  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(11px, 2cqi, 15px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 320ms ease-out,
+    transform 320ms ease-out;
+
+  &[data-active="true"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-bar__dot {
+  width: clamp(7px, 1.6cqi, 9px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #5cff7a;
+  box-shadow: 0 0 0 0 rgba(92, 255, 122, 0.7);
+  animation: live-pulse 1.6s ease-out infinite;
+  align-self: center;
+}
+
+.live-bar__stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4ch;
+  white-space: nowrap;
+}
+
+.live-bar__num {
+  font-size: clamp(15px, 3.2cqi, 24px);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.live-bar__label {
+  opacity: 0.78;
+}
+
+.live-bar__sep {
+  opacity: 0.45;
+  user-select: none;
+}
+
+.live-bar__stat--season {
+  color: #fff;
+  letter-spacing: 0.06em;
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(92, 255, 122, 0.65);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(92, 255, 122, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(92, 255, 122, 0);
+  }
 }
 
 // --- Checkered grid ---------------------------------------------------------
@@ -111,9 +199,6 @@ body {
   color: #fff;
   text-align: center;
   cursor: pointer;
-
-  // The live pill is absolutely positioned against this box.
-  position: relative;
 
   // Each button is its own unnamed container, so the title/subtitle inside
   // size against *button* width (not slot width). Stops tablet layouts
@@ -189,68 +274,6 @@ body {
   background: linear-gradient(180deg, $green-top 0%, $green-bottom 100%);
 }
 
-// --- Live pill --------------------------------------------------------------
-// Top-right badge on each button. Stays empty/hidden until the proxy
-// returns real data, so it doubles as a visible health indicator: if the
-// pill never appears, the API integration is broken.
-.cta__pill {
-  position: absolute;
-  top: clamp(6px, 2.4cqi, 14px);
-  right: clamp(6px, 2.4cqi, 14px);
-
-  display: inline-flex;
-  align-items: center;
-  gap: clamp(4px, 1.2cqi, 6px);
-
-  padding: clamp(2px, 0.6cqi, 4px) clamp(6px, 1.6cqi, 10px);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.32);
-
-  font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
-  font-weight: 700;
-  font-size: clamp(8px, 2.6cqi, 11px);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: #fff;
-
-  // Hidden until JS sets data-active="true". Avoids a layout flash when
-  // the proxy is slow or absent.
-  opacity: 0;
-  transform: translateY(-4px);
-  transition:
-    opacity 220ms ease-out,
-    transform 220ms ease-out;
-  pointer-events: none;
-
-  &::before {
-    content: "";
-    width: clamp(5px, 1.4cqi, 7px);
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: #5cff7a;
-    box-shadow: 0 0 0 0 rgba(92, 255, 122, 0.7);
-    animation: cta-pulse 1.6s ease-out infinite;
-  }
-
-  &[data-active="true"] {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes cta-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(92, 255, 122, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(92, 255, 122, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(92, 255, 122, 0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .cta {
     transition: none;
@@ -260,8 +283,8 @@ body {
       transform: none;
     }
   }
-  .cta__pill,
-  .cta__pill::before {
+  .live-bar,
+  .live-bar__dot {
     animation: none;
     transition: none;
   }

@@ -73,6 +73,21 @@
          dot is hidden under `prefers-reduced-motion`.
     -->
     <main class="cta-slot" aria-label="Colonist call-to-action buttons">
+      <header class="live-bar" aria-live="polite" aria-label="Live activity">
+        <span class="live-bar__dot" aria-hidden="true"></span>
+        <span class="live-bar__stat">
+          <span class="live-bar__num" data-stat="playing">—</span>
+          <span class="live-bar__label">playing now</span>
+        </span>
+        <span class="live-bar__sep" aria-hidden="true">·</span>
+        <span class="live-bar__stat">
+          <span class="live-bar__num" data-stat="rooms">—</span>
+          <span class="live-bar__label">rooms waiting</span>
+        </span>
+        <span class="live-bar__sep" aria-hidden="true">·</span>
+        <span class="live-bar__stat live-bar__stat--season" data-stat="season">—</span>
+      </header>
+
       <div class="cta-grid">
         <button
           type="button"
@@ -80,7 +95,6 @@
           data-cta="primary"
           aria-label="Quick play — jump straight into a live game"
         >
-          <span class="cta__pill" aria-hidden="true"></span>
           <span class="cta__title">QUICK PLAY</span>
           <span class="cta__subtitle">One click, straight into a live game</span>
         </button>
@@ -91,7 +105,6 @@
           data-cta="secondary"
           aria-label="Leaderboards — see the top Colonist players"
         >
-          <span class="cta__pill" aria-hidden="true"></span>
           <span class="cta__title">LEADERBOARDS</span>
           <span class="cta__subtitle">See the top players of the season</span>
         </button>

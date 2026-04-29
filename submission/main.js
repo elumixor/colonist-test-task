@@ -2,15 +2,15 @@
 // Colonist CTAs — live API wiring
 // ---------------------------------------------------------------------------
 // Iteration 2 (2026-04-29): both buttons are now backed by real Colonist
-// data. Primary deep-links into a specific live room (not the generic
-// `#quickplay` queue) so the click drops you into a game that already has
-// players waiting. Secondary surfaces the active season + your region —
-// `/api/leaderboards-tabs/` is geo-personalized at the upstream, so a
+// data, with a live activity bar above them that reads like a stadium
+// ticker. Primary deep-links into a specific live room (not the generic
+// `#quickplay` queue). Secondary surfaces the geo-personalised season +
+// region — `/api/leaderboards-tabs/` is per-IP at the upstream, so a
 // reviewer in NA sees their continent, a reviewer in EU sees theirs.
 //
 // Why a proxy: colonist.io's API doesn't set CORS headers, so the browser
 // can't call it directly from github.io. The /proxy folder ships a 70-line
-// Cloudflare Worker that allowlists exactly the four GETs we need and adds
+// Cloudflare Worker that allowlists exactly four GETs we need and adds
 // `access-control-allow-origin: *`. See proxy/README.md.
 // ---------------------------------------------------------------------------
 
@@ -29,12 +29,12 @@ const COLONIST = {
 
 const ENDPOINTS = {
   rooms: "/api/room-list.json",
+  games: "/api/game-list.json",
   leaderboards: "/api/leaderboards-tabs/",
 };
 
-// Room list refresh cadence. The button shows live counts, so a few-second
-// stale window is fine; the proxy already caches at 15 s, so this never
-// translates to upstream traffic 1:1.
+// Activity refresh cadence. Counts move every poll; the proxy already
+// caches at 15 s, so this never translates to upstream traffic 1:1.
 const REFRESH_MS = 25_000;
 const FETCH_TIMEOUT_MS = 2500;
 
@@ -45,10 +45,12 @@ let bestRoomId = null;
 
 const primary = document.querySelector('[data-cta="primary"]');
 const secondary = document.querySelector('[data-cta="secondary"]');
-const primaryPill = primary.querySelector(".cta__pill");
-const secondaryPill = secondary.querySelector(".cta__pill");
 const primarySubtitle = primary.querySelector(".cta__subtitle");
-const secondarySubtitle = secondary.querySelector(".cta__subtitle");
+
+const liveBar = document.querySelector(".live-bar");
+const liveBarPlaying = liveBar.querySelector('[data-stat="playing"]');
+const liveBarRooms = liveBar.querySelector('[data-stat="rooms"]');
+const liveBarSeason = liveBar.querySelector('[data-stat="season"]');
 
 // ---------------------------------------------------------------------------
 // Click handlers
@@ -71,30 +73,52 @@ secondary.addEventListener("click", () => {
 // ---------------------------------------------------------------------------
 if (PROXY_BASE) {
   hydrate();
-  // Re-poll rooms only — leaderboards-tabs barely changes mid-session.
-  setInterval(refreshRooms, REFRESH_MS);
+  setInterval(refreshActivity, REFRESH_MS);
 }
 
 async function hydrate() {
-  await Promise.all([refreshRooms(), refreshLeaderboards()]);
+  await Promise.all([refreshActivity(), refreshLeaderboards()]);
 }
 
-async function refreshRooms() {
-  const data = await fetchJson(ENDPOINTS.rooms);
-  if (!data?.rooms) return;
+async function refreshActivity() {
+  // Both endpoints in parallel — we need rooms for the deep-link and
+  // game-list for the "playing now" count of users actually mid-game.
+  const [roomData, gameData] = await Promise.all([
+    fetchJson(ENDPOINTS.rooms),
+    fetchJson(ENDPOINTS.games),
+  ]);
 
-  const joinable = data.rooms.filter(isJoinable).sort(byMostFull);
-  if (joinable.length === 0) {
-    bestRoomId = null;
-    setPill(primaryPill, null);
-    return;
+  if (roomData?.rooms) {
+    const joinable = roomData.rooms.filter(isJoinable).sort(byMostFull);
+    if (joinable.length > 0) {
+      bestRoomId = joinable[0].id;
+      // Subtitle gets the specific room we'll drop the user into. The
+      // original copy ("straight into a live game") becomes literal.
+      primarySubtitle.textContent = roomSubtitle(joinable[0]);
+    } else {
+      bestRoomId = null;
+    }
+
+    setStat(liveBarRooms, joinable.length);
   }
 
-  bestRoomId = joinable[0].id;
-  setPill(primaryPill, `${joinable.length} live`);
-  // Subtitle gets the specific room we'll drop the user into. The original
-  // copy ("One click, straight into a live game") is now literally true.
-  primarySubtitle.textContent = roomSubtitle(joinable[0]);
+  if (roomData?.rooms || gameData?.games) {
+    const inRooms = countHumans(roomData?.rooms);
+    const inGames = countHumans(gameData?.games);
+    setStat(liveBarPlaying, inRooms + inGames);
+  }
+
+  showBar();
+}
+
+function countHumans(list) {
+  if (!Array.isArray(list)) return 0;
+  let n = 0;
+  for (const item of list) {
+    if (!Array.isArray(item.players)) continue;
+    for (const p of item.players) if (!p.isBot) n++;
+  }
+  return n;
 }
 
 function isJoinable(room) {
@@ -118,8 +142,11 @@ function roomSubtitle(room) {
   const filled = room.players?.length ?? 0;
   const seats = room.maxPlayers;
   const seatsLeft = seats - filled;
-  if (seatsLeft === 1) return `Joining ${filled}/${seats} · last seat`;
-  return `Joining ${filled}/${seats} · ${seatsLeft} seats open`;
+  // Surfacing the room id makes the deep-link concrete — you can see
+  // *which* room you're about to land in before you click.
+  const id = room.id;
+  if (seatsLeft === 1) return `Joining ${id} · ${filled}/${seats} · last seat`;
+  return `Joining ${id} · ${filled}/${seats} · ${seatsLeft} seats open`;
 }
 
 async function refreshLeaderboards() {
@@ -132,12 +159,14 @@ async function refreshLeaderboards() {
   const parts = [];
   if (season != null) parts.push(`S${season}`);
   if (region) parts.push(region);
-  if (parts.length === 0) return;
+  if (parts.length > 0) liveBarSeason.textContent = parts.join(" · ");
 
-  setPill(secondaryPill, parts.join(" · "));
   if (region) {
-    secondarySubtitle.textContent = `Top players in ${region} this season`;
+    secondary.querySelector(".cta__subtitle").textContent =
+      `Top players in ${region} this season`;
   }
+
+  showBar();
 }
 
 function pickRegionLabel(tabs) {
@@ -155,6 +184,35 @@ function pickRegionLabel(tabs) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Live bar
+// ---------------------------------------------------------------------------
+function showBar() {
+  liveBar.setAttribute("data-active", "true");
+}
+
+function setStat(el, target) {
+  if (!el) return;
+  const start = parseInt(el.textContent.replace(/[^0-9]/g, ""), 10) || 0;
+  if (start === target) return;
+  animateNumber(el, start, target);
+}
+
+// Tiny tween: 600ms ease-out cubic. Keeps the bar feeling alive when
+// counts move, without pulling in a CountUp library for one feature.
+function animateNumber(el, from, to, duration = 600) {
+  const t0 = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - t0) / duration);
+    const eased = 1 - (1 - t) ** 3;
+    const v = Math.round(from + (to - from) * eased);
+    el.textContent = v.toLocaleString();
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ---------------------------------------------------------------------------
 async function fetchJson(path) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
@@ -170,15 +228,4 @@ async function fetchJson(path) {
   } finally {
     clearTimeout(timer);
   }
-}
-
-function setPill(pill, text) {
-  if (!pill) return;
-  if (!text) {
-    pill.removeAttribute("data-active");
-    pill.textContent = "";
-    return;
-  }
-  pill.textContent = text;
-  pill.setAttribute("data-active", "true");
 }
