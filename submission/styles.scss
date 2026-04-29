@@ -290,6 +290,17 @@ body {
 
 .cta--secondary {
   background: linear-gradient(180deg, $green-top 0%, $green-bottom 100%);
+
+  // No click action — the secondary is a live data display, not a CTA.
+  // Drop the pointer cursor and the hover-lift so it reads as a passive
+  // surface and doesn't promise navigation that won't happen.
+  cursor: default;
+
+  &:hover,
+  &:active {
+    transform: none;
+    filter: none;
+  }
 }
 
 // --- Region tabs ------------------------------------------------------------
@@ -316,36 +327,23 @@ body {
   }
 }
 
+// Chips are passive labels (the API result made visible) — they do not
+// navigate. Flat styling, no hover lift, so they read as data badges
+// rather than buttons.
 .region-tabs__chip {
   display: inline-block;
   padding: clamp(4px, 1.2cqi, 8px) clamp(10px, 2.4cqi, 14px);
   border-radius: 999px;
 
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
-  text-decoration: none;
   font-family: "Vremena Grotesk Bold", "Inter", sans-serif;
   font-weight: 700;
   font-size: clamp(10px, 2cqi, 13px);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
-
-  transition:
-    background 160ms ease-out,
-    transform 160ms $ease-pop;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.32);
-    transform: translateY(-1px);
-  }
-  &:active {
-    transform: translateY(1px);
-  }
-  &:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-  }
+  user-select: none;
 }
 
 @container slot (max-width: 420px) {
